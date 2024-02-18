@@ -1,7 +1,9 @@
 /*--------------------------- Css-loader ---------------------------*/
 
 .loader {
-  font-size: 5px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  font-size: 7px;
   width: 1em;
   height: 1em;
   border-radius: 50%;
@@ -10,9 +12,10 @@
   animation: mulShdSpin 1.1s infinite ease;
   transform: translateZ(0);
 
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+  display: none;
+}
+.in-active {
+  display: block;
 }
 
 @keyframes mulShdSpin {

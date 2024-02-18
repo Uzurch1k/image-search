@@ -1,12 +1,20 @@
 // ===============================================================
 
-import axios from 'axios';
-
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
+
+// ===============================================================
+
+import { templateGallery } from './js/render-functions';
+import { searchGallery } from './js/pixabay-api';
+
+const lightbox = new SimpleLightbox('.gallery-list a', {
+  captionDelay: 250,
+  captionsData: 'alt',
+});
 
 // ===============================================================
 
@@ -40,116 +48,109 @@ const optionsIziToastError = {
   maxWidth: 400,
 };
 
+const optionsIziToastInfo = {
+  message: "We're sorry, but you've reached the end of search results.",
+  titleColor: '#fff',
+  titleSize: '16px',
+  titleLineHeight: '1.5',
+  messageColor: '#fff',
+  messageSize: '16px',
+  messageLineHeight: '1.5',
+  position: 'topRight',
+  timeout: 3000,
+  progressBar: false,
+  maxWidth: 350,
+};
+
 // ===============================================================
 
-const form = document.querySelector('.gallery-form');
+const refs = {
+  form: document.querySelector('.gallery-form'),
+  loader: document.querySelector('.loader'),
+  gallery: document.querySelector('.gallery-list'),
+  btnLoadMore: document.querySelector('.gallery-load-more'),
+  scrollToTopBtn: document.querySelector('.scroll-up'),
+};
 
-const loader = document.querySelector('.loader');
-
-const gallery = document.querySelector('.gallery-list');
+let text;
+let page;
+let maxPage;
 
 // ===============================================================
 
-form.addEventListener('submit', onFormSubmit);
+refs.form.addEventListener('submit', onFormSubmit);
+refs.btnLoadMore.addEventListener('click', onLoadMoreClick);
 
-function onFormSubmit(e) {
+// ===============================================================
+
+async function onFormSubmit(e) {
   e.preventDefault();
-  const text = form.elements.text.value.trim();
+  text = e.target.elements.text.value.trim();
+  page = 1;
 
   if (!text) {
-    form.reset();
+    e.target.reset();
     iziToast.warning(optionsIziToastWarning);
     return;
   }
-  gallery.innerHTML = '';
 
+  refs.gallery.innerHTML = '';
+  hideLoadMore();
   showLoader();
 
-  searchGallery(text)
-    .then(data => {
-      if (data.hits.length === 0) {
-        iziToast.warning(optionsIziToastError);
-        return;
-      }
-      renderGallery(data.hits);
-    })
-    .catch(err => console.error('Error loading data:', err))
-    .finally(hideLoader);
-
-  form.reset();
-}
-
-function searchGallery(request) {
-  const BASE_URL = 'https://pixabay.com';
-  const END_POINT = '/api/';
-  const PARAMS = `?key=42127236-8bfdbbfbeed8a2dadaca720e8
-	&q=${request}
-	&image_type=photo
-	&orientation=horizontal
-	&safesearch=true
-	&per_page=21`;
-
-  const url = BASE_URL + END_POINT + PARAMS;
-
-  return fetch(url).then(res => {
-    if (res.ok) {
-      return res.json();
-    } else {
-      throw new Error(res.status);
+  try {
+    const data = await searchGallery(text, page);
+    if (data.hits.length === 0) {
+      iziToast.warning(optionsIziToastError);
+      hideLoader();
+      e.target.reset();
+      return;
     }
-  });
+    renderGallery(data.hits);
+    if (data.totalHits <= 15) {
+      hideLoadMore();
+    } else {
+      showLoadMore();
+    }
+  } catch (err) {
+    console.error('Error loading data:', err);
+  }
+
+  hideLoader();
+  e.target.reset();
 }
 
 // ===============================================================
 
-function templateGallery(dataGallery) {
-  return dataGallery
-    .map(
-      ({
-        webformatURL,
-        largeImageURL,
-        tags,
-        likes,
-        views,
-        comments,
-        downloads,
-      }) => {
-        return `<li class="gallery-item">
-      <a class="gallery-link" href="${largeImageURL}">
-        <img class="gallery-image" src="${webformatURL}" alt="${tags}" />
-      </a>
-      <ul class="specific-list">
-        <li class="specific-item">
-          <p class="specific-text">Likes</p>
-          <p class="specific-quantity">${likes}</p>
-        </li>
-        <li class="specific-item">
-          <p class="specific-text">Views</p>
-          <p class="specific-quantity">${views}</p>
-        </li>
-        <li class="specific-item">
-          <p class="specific-text">Comments</p>
-          <p class="specific-quantity">${comments}</p>
-        </li>
-        <li class="specific-item">
-          <p class="specific-text">Downloads</p>
-          <p class="specific-quantity">${downloads}</p>
-        </li>
-      </ul>
-    </li>`;
-      }
-    )
-    .join('');
+async function onLoadMoreClick() {
+  page += 1;
+  hideLoadMore();
+  showLoader();
+
+  const data = await searchGallery(text, page);
+  maxPage = Math.ceil(data.totalHits / 15);
+
+  if (page >= maxPage) {
+    iziToast.info(optionsIziToastInfo);
+    hideLoadMore();
+    hideLoader();
+    return;
+  }
+
+  renderGallery(data.hits);
+
+  const height = refs.gallery.firstElementChild.getBoundingClientRect().height;
+  window.scrollBy({ top: height * 3, behavior: 'smooth' });
+
+  hideLoader();
+  showLoadMore();
 }
+
+// ===============================================================
 
 function renderGallery(dataGallery) {
   const markup = templateGallery(dataGallery);
-  gallery.innerHTML = markup;
-
-  const lightbox = new SimpleLightbox('.gallery-list a', {
-    captionDelay: 250,
-    captionsData: 'alt',
-  });
+  refs.gallery.insertAdjacentHTML('beforeend', markup);
 
   lightbox.refresh();
 }
@@ -157,11 +158,38 @@ function renderGallery(dataGallery) {
 // ===============================================================
 
 function showLoader() {
-  loader.classList.add('in-active');
+  refs.loader.classList.add('in-active');
 }
 
 function hideLoader() {
-  loader.classList.remove('in-active');
+  refs.loader.classList.remove('in-active');
 }
+
+// ===============================================================
+
+function showLoadMore() {
+  refs.btnLoadMore.classList.add('in-active');
+}
+
+function hideLoadMore() {
+  refs.btnLoadMore.classList.remove('in-active');
+}
+
+// ===============================================================
+
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 120) {
+    refs.scrollToTopBtn.classList.add('show');
+  } else {
+    refs.scrollToTopBtn.classList.remove('show');
+  }
+});
+
+refs.scrollToTopBtn.addEventListener('click', () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  });
+});
 
 // ===============================================================
