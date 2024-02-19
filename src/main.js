@@ -72,9 +72,9 @@ const refs = {
   scrollToTopBtn: document.querySelector('.scroll-up'),
 };
 
-let text;
-let page;
-let maxPage;
+let text = '';
+let page = 1;
+let maxPage = 1;
 
 // ===============================================================
 
@@ -86,7 +86,6 @@ refs.btnLoadMore.addEventListener('click', onLoadMoreClick);
 async function onFormSubmit(e) {
   e.preventDefault();
   text = e.target.elements.text.value.trim();
-  page = 1;
 
   if (!text) {
     e.target.reset();
@@ -127,8 +126,9 @@ async function onLoadMoreClick() {
   hideLoadMore();
   showLoader();
 
+  const perPage = 15;
   const data = await searchGallery(text, page);
-  maxPage = Math.ceil(data.totalHits / 15);
+  maxPage = Math.ceil(data.totalHits / perPage);
 
   if (page >= maxPage) {
     iziToast.info(optionsIziToastInfo);
