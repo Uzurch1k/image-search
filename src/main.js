@@ -74,7 +74,7 @@ const refs = {
 
 let text = '';
 let page = 1;
-let maxPage = 1;
+const perPage = 15;
 
 // ===============================================================
 
@@ -106,7 +106,7 @@ async function onFormSubmit(e) {
       return;
     }
     renderGallery(data.hits);
-    if (data.totalHits <= 15) {
+    if (data.totalHits <= perPage) {
       hideLoadMore();
     } else {
       showLoadMore();
@@ -126,9 +126,8 @@ async function onLoadMoreClick() {
   hideLoadMore();
   showLoader();
 
-  const perPage = 15;
   const data = await searchGallery(text, page);
-  maxPage = Math.ceil(data.totalHits / perPage);
+  const maxPage = Math.ceil(data.totalHits / perPage);
 
   if (page >= maxPage) {
     iziToast.info(optionsIziToastInfo);
